@@ -1,0 +1,82 @@
+<svg viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#c0392b"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#2471a3"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#7f8c8d"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Data Center RC Thermal Model — Heat Flow Paths</text>
+  <text x="450" y="56" text-anchor="middle" font-size="13" fill="#666">Boxes = thermal mass (C, stores heat). Arrows = heat flow (Q). Labels R = thermal resistance on each path.</text>
+
+  <!-- IT load source -->
+  <rect x="40" y="150" width="150" height="90" rx="8" fill="#eaf2f8" stroke="#2471a3" stroke-width="2"/>
+  <text x="115" y="185" text-anchor="middle" font-size="15" font-weight="bold" fill="#1a5276">IT Load</text>
+  <text x="115" y="207" text-anchor="middle" font-size="12" fill="#555">servers doing work</text>
+  <text x="115" y="225" text-anchor="middle" font-size="12" fill="#555">= heat in (kW)</text>
+
+  <!-- Racks -->
+  <rect x="290" y="140" width="180" height="110" rx="8" fill="#fdecea" stroke="#c0392b" stroke-width="2.5"/>
+  <text x="380" y="170" text-anchor="middle" font-size="16" font-weight="bold" fill="#922b21">RACKS</text>
+  <text x="380" y="192" text-anchor="middle" font-size="12" fill="#555">T_rack (state)</text>
+  <text x="380" y="210" text-anchor="middle" font-size="12" fill="#555">C = 120 kJ/K each</text>
+  <text x="380" y="234" text-anchor="middle" font-size="11" fill="#999">limit 32 °C</text>
+
+  <!-- Room air -->
+  <rect x="570" y="140" width="180" height="110" rx="8" fill="#fef9e7" stroke="#b7950b" stroke-width="2.5"/>
+  <text x="660" y="170" text-anchor="middle" font-size="16" font-weight="bold" fill="#7d6608">ROOM AIR</text>
+  <text x="660" y="192" text-anchor="middle" font-size="12" fill="#555">T_air (state)</text>
+  <text x="660" y="210" text-anchor="middle" font-size="12" fill="#555">C = 800 kJ/K</text>
+
+  <!-- CRAC -->
+  <rect x="570" y="360" width="180" height="90" rx="8" fill="#eafaf1" stroke="#1e8449" stroke-width="2.5"/>
+  <text x="660" y="392" text-anchor="middle" font-size="15" font-weight="bold" fill="#145a32">CRAC (cooling)</text>
+  <text x="660" y="413" text-anchor="middle" font-size="12" fill="#555">removes heat Q_cool</text>
+  <text x="660" y="431" text-anchor="middle" font-size="12" fill="#555">elec = Q_cool / COP</text>
+
+  <!-- Outside -->
+  <rect x="810" y="150" width="80" height="90" rx="8" fill="#f2f3f4" stroke="#7f8c8d" stroke-width="2"/>
+  <text x="850" y="188" text-anchor="middle" font-size="13" font-weight="bold" fill="#555">Outside</text>
+  <text x="850" y="208" text-anchor="middle" font-size="12" fill="#777">28 °C</text>
+
+  <!-- Arrow: IT load -> racks -->
+  <line x1="190" y1="195" x2="285" y2="195" stroke="#2471a3" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="237" y="185" text-anchor="middle" font-size="12" fill="#2471a3">P_IT</text>
+
+  <!-- Arrow: racks -> air  (Q = dT/R) -->
+  <line x1="470" y1="195" x2="565" y2="195" stroke="#c0392b" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="517" y="183" text-anchor="middle" font-size="12" fill="#c0392b">Q = ΔT / R</text>
+  <text x="517" y="217" text-anchor="middle" font-size="11" fill="#c0392b">R = 0.35</text>
+
+  <!-- Arrow: air -> CRAC (heat removed) -->
+  <line x1="660" y1="250" x2="660" y2="355" stroke="#1e8449" stroke-width="3" marker-end="url(#arrowGray)"/>
+  <text x="675" y="305" font-size="12" fill="#1e8449">Q_cool</text>
+
+  <!-- Arrow: outside <-> air (envelope leak) -->
+  <line x1="808" y1="195" x2="753" y2="195" stroke="#7f8c8d" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrowGray)"/>
+  <text x="782" y="183" text-anchor="middle" font-size="11" fill="#7f8c8d">R = 4.0</text>
+  <text x="782" y="230" text-anchor="middle" font-size="10" fill="#999">leak in</text>
+
+  <!-- Equations box -->
+  <rect x="40" y="330" width="480" height="200" rx="8" fill="#fbfcfc" stroke="#d5d8dc" stroke-width="1.5"/>
+  <text x="60" y="358" font-size="14" font-weight="bold" fill="#333">The two laws, applied every 10 s step:</text>
+
+  <text x="60" y="390" font-size="13" fill="#c0392b" font-weight="bold">1. Heat flow (thermal Ohm's law)</text>
+  <text x="75" y="412" font-size="13" fill="#444" font-family="monospace">Q = (T_hot − T_cold) / R</text>
+
+  <text x="60" y="446" font-size="13" fill="#b7950b" font-weight="bold">2. Temperature change (thermal mass)</text>
+  <text x="75" y="468" font-size="13" fill="#444" font-family="monospace">ΔT = (Q_net / C) × Δt</text>
+
+  <text x="60" y="500" font-size="12" fill="#555">Rack:  C·ΔT_rack = (P_IT − Q_rack→air) · Δt</text>
+  <text x="60" y="520" font-size="12" fill="#555">Air:   C·ΔT_air  = (Q_rack→air − Q_cool + Q_leak) · Δt</text>
+
+  <!-- PUE callout -->
+  <rect x="560" y="480" width="330" height="55" rx="8" fill="#eaf2f8" stroke="#2471a3" stroke-width="1.5"/>
+  <text x="725" y="505" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a5276">PUE = (P_IT + Q_cool/COP) / P_IT  ≥ 1.0</text>
+  <text x="725" y="524" text-anchor="middle" font-size="11" fill="#555">lower is better — the target the twin will optimize</text>
+</svg>

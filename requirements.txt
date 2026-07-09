@@ -1,0 +1,11 @@
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+# Milestone 2 (dashboard)
+streamlit>=1.30
+streamlit-autorefresh>=1.0   # optional: live auto-refresh
+# Milestone 2 (optional MQTT transport; needs a broker like mosquitto)
+paho-mqtt>=1.6
+# Milestone 3 (ML forecaster)
+scikit-learn>=1.3
+joblib>=1.3
