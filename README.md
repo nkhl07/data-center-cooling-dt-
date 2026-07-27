@@ -4,8 +4,9 @@ A digital twin of a data center's cooling system. It mirrors thermal state,
 forecasts temperatures and energy use, and (in later milestones) optimizes
 cooling setpoints to lower PUE.
 
-Status: **Milestones 1–3 complete** — physics plant, streaming pipeline + live
-dashboard, and an ML forecaster that predicts ahead of real time.
+Status: **Milestones 1–4 complete** — physics plant, streaming pipeline + live
+dashboard, an ML forecaster that predicts ahead of real time, and fault
+injection + anomaly detection built on the forecaster's residuals.
 
 ## What's here
 
@@ -20,6 +21,9 @@ dashboard, and an ML forecaster that predicts ahead of real time.
 | `dataset.py` | Builds ML training data: varied episodes, features, targets. |
 | `forecaster.py` | The forecaster (Ridge per target+horizon) + persistence baseline. |
 | `train_forecaster.py` | Trains, evaluates vs baseline, plots, saves the model. |
+| `faults.py` | Injects equipment faults (hot spot, CRAC loss, stuck fan) into the plant. |
+| `anomaly.py` | Residual-based anomaly detector (robust threshold + debounce). |
+| `run_fault_demo.py` | Injects a fault, detects it, reports latency, plots the result. |
 | `heat_flow_diagram.svg` | Diagram of the heat-flow paths and equations. |
 
 ## Quickstart
@@ -47,6 +51,12 @@ python -m streamlit run dashboard.py  # live dashboard in your browser
 
 ```bash
 python train_forecaster.py            # writes forecaster.joblib + forecast_eval.png
+```
+
+**Milestone 4 — fault injection + anomaly detection**
+
+```bash
+python run_fault_demo.py              # writes fault_detection.png
 ```
 
 ## The model
@@ -82,11 +92,22 @@ Test-set accuracy (held-out episodes): rack-temp MAE ~0.19 °C at 5 min to
 ~0.79 °C at 30 min, beating the baseline by ~31–36%. Cooling-energy predictions
 beat the baseline by ~41–50%.
 
+## Fault detection (M4)
+
+The forecaster only learned normal behavior, so when a fault pushes reality away
+from its prediction, the residual (actual − predicted) spikes. The detector
+learns the normal residual size with robust stats (median + MAD) and alarms when
+the z-score exceeds a threshold for several steps in a row (debounce).
+
+Result: a CRAC losing 45% capacity is caught **1.5 min after onset with zero
+false alarms**; stuck-fan and hot-spot faults are caught in 0.2–1.0 min. See
+`fault_detection.png`.
+
 ## Roadmap
 
 - [x] M1: RC thermal plant + validation
 - [x] M2: data pipeline (queue/MQTT) + live dashboard
 - [x] M3: ML forecaster (temps + cooling energy)
-- [ ] M4: fault injection + anomaly detection
+- [x] M4: fault injection + anomaly detection
 - [ ] M5: setpoint optimizer, report PUE before/after
 - [ ] M6: Docker + write-up + demo

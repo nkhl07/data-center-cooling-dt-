@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1784580357302,
+  "projectRoot": "/Users/nikhil/Desktop/Projects/dc-cooling-twin",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pip",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1784580357168,
+      "keyFiles": [
+        "anomaly.cpython-310.pyc",
+        "config.cpython-310.pyc",
+        "config.cpython-312.pyc",
+        "dataset.cpython-310.pyc",
+        "dataset.cpython-312.pyc"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

@@ -26,7 +26,7 @@ def main():
     print(f"  {data['X'].shape[0]} samples, {data['X'].shape[1]} features")
     print(f"  train={train_mask.sum()}  test={test_mask.sum()}")
 
-    print("Training one gradient-boosted model per (target, horizon)...")
+    print("Training one linear (Ridge) model per (target, horizon)...")
     fc = TwinForecaster().fit(
         data["X"], data["y"], data["feature_names"], train_mask
     )
