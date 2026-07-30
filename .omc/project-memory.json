@@ -52,6 +52,13 @@
       ]
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "dataset.py",
+      "accessCount": 1,
+      "lastAccessed": 1785370137102,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }

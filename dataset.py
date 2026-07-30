@@ -1,5 +1,5 @@
 """
-Training-data generator for the ML forecaster (Milestone 3).
+Training-data generator for the ML forecaster (Milestone 3, extended for M5).
 
 The forecaster's job: given the twin's recent history, predict the hottest
 rack temperature and the cooling electricity some minutes into the future.
@@ -14,9 +14,10 @@ So here we treat the simulator only as a data source and never let the model
 peek at the physics equations.
 
 What this file does:
-  1. Runs many short "episodes" with randomized load profiles for variety.
+  1. Runs many short "episodes" with randomized load profiles AND randomized
+     CRAC setpoint schedules, for variety.
   2. Turns each episode's time series into supervised samples:
-        X = features describing the recent past + known near-future load
+        X = features describing the recent past + the setpoint in effect
         y = target value H steps into the future
   3. Splits episodes into train/test (never mixing an episode across both,
      so there's no time leakage).
@@ -34,6 +35,12 @@ HORIZONS_MIN = [5, 15, 30]
 N_LAGS = 6
 # Targets we forecast.
 TARGETS = ["t_rack_max", "cooling_elec_kw"]
+
+# CRAC setpoint randomization (M5). The optimizer will move this knob, so the
+# forecaster has to have seen it move.
+SETPOINT_MIN_C = 16.0
+SETPOINT_MAX_C = 24.0
+SETPOINT_HOLD_MIN = (15, 31)      # a setpoint is held this many minutes
 
 
 def random_load_profile(cfg: Config, rng: np.random.Generator) -> np.ndarray:
@@ -70,20 +77,47 @@ def random_load_profile(cfg: Config, rng: np.random.Generator) -> np.ndarray:
     return np.clip(load, idle * 0.5, cfg.rack.max_power_kw)
 
 
+def random_setpoint_schedule(cfg: Config, rng: np.random.Generator) -> np.ndarray:
+    """
+    Piecewise-constant CRAC setpoint over one episode.
+
+    Held for 15-30 min, then stepped to a new value. The piecewise structure
+    matters: the optimizer changes the setpoint at discrete control intervals,
+    so the model needs examples of both the steady-state effect of a setpoint
+    LEVEL and the transient response to a setpoint CHANGE. An episode with one
+    fixed setpoint would only ever teach the first.
+    """
+    n_steps = int(cfg.sim.duration_s / cfg.sim.dt_s)
+    per_min = int(60 / cfg.sim.dt_s)
+
+    sp = np.empty(n_steps)
+    k = 0
+    while k < n_steps:
+        hold = int(rng.integers(*SETPOINT_HOLD_MIN)) * per_min
+        sp[k:k + hold] = rng.uniform(SETPOINT_MIN_C, SETPOINT_MAX_C)
+        k += hold
+    return sp
+
+
 def run_episode(cfg: Config, rng: np.random.Generator) -> dict:
-    """Step the plant once with a random load; return time series arrays."""
+    """Step the plant once with a random load AND a random setpoint schedule."""
     model = DataCenterThermalModel(cfg)
     load = random_load_profile(cfg, rng)
+    setpoint = random_setpoint_schedule(cfg, rng)
+
     n = load.shape[0]
     series = {k: np.empty(n) for k in
-              ["it_power_kw", "t_air", "t_rack_max", "cooling_elec_kw", "q_cooling_kw"]}
+              ["it_power_kw", "t_air", "t_rack_max", "cooling_elec_kw",
+               "q_cooling_kw", "setpoint_c"]}
+
     for k in range(n):
-        obs = model.step(load[k])
+        obs = model.step(load[k], supply_temp_c=setpoint[k])
         series["it_power_kw"][k] = obs["it_power_kw"]
         series["t_air"][k] = obs["T_air"]
         series["t_rack_max"][k] = obs["T_rack_max"]
         series["cooling_elec_kw"][k] = obs["cooling_elec_kw"]
         series["q_cooling_kw"][k] = obs["q_cooling_kw"]
+        series["setpoint_c"][k] = setpoint[k]
     return series
 
 
@@ -95,7 +129,8 @@ def _rolling_mean(x: np.ndarray, w: int) -> np.ndarray:
     return np.concatenate([pad, out])
 
 
-def build_features(series: dict) -> tuple[np.ndarray, list[str]]:
+def build_features(series: dict,
+                   setpoint_override=None) -> tuple[np.ndarray, list[str]]:
     """
     Turn one episode's time series into a feature matrix (one row per timestep).
 
@@ -104,6 +139,7 @@ def build_features(series: dict) -> tuple[np.ndarray, list[str]]:
     model smoothed trends rather than raw instantaneous values. Concretely:
 
       - current temps (already smooth) as anchors
+      - the CRAC setpoint in effect, plus the cooling gap it creates
       - SMOOTHED load at two timescales (1 min and 5 min rolling means) so the
         model sees the workload trend, not the sensor jitter
       - a smoothed rate-of-change of rack temp (its 'momentum' / direction)
@@ -112,6 +148,9 @@ def build_features(series: dict) -> tuple[np.ndarray, list[str]]:
     Smoothing here is what removes the jumpy predictions: the noisy raw load and
     raw rate-of-change were tricking the trees into reacting to meaningless
     high-frequency wiggle.
+
+    setpoint_override lets the optimizer ask a counterfactual: "what if I held
+    the setpoint at X from here?" Accepts a scalar or a full-length array.
     """
     n = len(series["t_rack_max"])
     cols: dict[str, np.ndarray] = {}
@@ -125,6 +164,29 @@ def build_features(series: dict) -> tuple[np.ndarray, list[str]]:
     cols["t_rack_max_now"] = series["t_rack_max"]
     cols["t_air_now"] = series["t_air"]
     cols["cooling_elec_kw_now"] = series["cooling_elec_kw"]
+
+    # --- CRAC setpoint: the control knob (M5) ---
+    if setpoint_override is None:
+        sp = series.get("setpoint_c", np.full(n, DEFAULT.crac.supply_temp_c))
+    else:
+        sp = np.broadcast_to(np.asarray(setpoint_override, dtype=float), (n,))
+    cols["setpoint_now"] = sp
+    # The gap is what physically drives cooling: q_cool = gain x max(0, gap).
+    # Handing the model the gap directly beats making a linear model infer it.
+    cols["cooling_gap"] = np.maximum(0.0, series["t_air"] - sp)
+
+    # Setpoint in effect at each forecast horizon. Known at inference because
+    # the optimizer PICKS it — same status as known near-future load.
+    for h_min in HORIZONS_MIN:
+        h = h_min * 6
+        if setpoint_override is None:
+            fut = np.empty(n)
+            fut[:n - h] = sp[h:]
+            fut[n - h:] = sp[-1]        # tail is trimmed by make_supervised anyway
+        else:
+            fut = sp                     # optimizer holds its candidate constant
+        cols[f"setpoint_at_{h_min}m"] = fut
+
 
     # Smoothed workload trend (signal, not jitter)
     cols["load_mean_1m"] = load_1m

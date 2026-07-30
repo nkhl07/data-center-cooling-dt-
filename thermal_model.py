@@ -70,6 +70,10 @@ class DataCenterThermalModel:
         R_ao = cfg.room.r_air_to_outside  # thermal resistance air -> outside (K/kW)
         T_out = cfg.sim.outside_temp_c
 
+        # Resolve the setpoint here so both the cooling demand and the COP see
+        # the same value (the optimizer's control knob).
+        setpoint = cfg.crac.supply_temp_c if supply_temp_c is None else supply_temp_c
+
         it_power_kw = np.asarray(it_power_kw, dtype=float)
 
         # ============================================================
@@ -83,7 +87,7 @@ class DataCenterThermalModel:
         q_rack_to_air = (self.T_rack - self.T_air) / R_ra          # kW, one per rack
 
         # 1b) The CRAC pulls heat out of the air (proportional controller above).
-        q_cool = self.cooling_heat_kw(supply_temp_c)               # kW
+        q_cool = self.cooling_heat_kw(setpoint)                     # kW         # kW
 
         # 1c) The building envelope. If it's warmer outside, heat leaks IN
         #     (positive); if cooler outside, heat leaks out (negative).
@@ -121,6 +125,8 @@ class DataCenterThermalModel:
         it_total_kw = float(it_power_kw.sum())
         total_facility_kw = it_total_kw + cooling_elec_kw
         pue = total_facility_kw / it_total_kw if it_total_kw > 0 else float("nan")
+        cop = cfg.crac.cop_at(setpoint)
+        cooling_elec_kw = q_cool / cop
 
         return {
             "T_rack": self.T_rack.copy(),
@@ -131,6 +137,8 @@ class DataCenterThermalModel:
             "it_power_kw": it_total_kw,
             "total_facility_kw": total_facility_kw,
             "pue": pue,
+            "supply_temp_c": setpoint,
+            "cop": cop
         }
 
 

@@ -33,8 +33,22 @@ class CRACConfig:
     supply_temp_c: float = 18.0      # cold air supply setpoint
     # Cooling power is proportional to (air_temp - supply_temp), capped at max.
     gain_kw_per_k: float = 8.0       # how aggressively it reacts to warm air
-    # Electrical: cooling isn't free. Cooling electricity = heat removed / COP.
-    cop: float = 4.0                 # coefficient of performance (heat moved per elec kW)
+     # Electrical: cooling isn't free. Cooling electricity = heat removed / COP.
+    # COP is NOT constant: pumping heat uphill gets cheaper as the lift shrinks,
+    # so a warmer supply setpoint buys real efficiency. Carnot would give ~26%/K
+    # here; 3%/K is the conservative real-equipment figure (fixed losses don't
+    # shrink with the lift). This is the main lever the M5 optimizer exploits.
+    cop: float = 4.0                 # COP quoted AT cop_ref_temp_c
+    cop_ref_temp_c: float = 18.0     # supply temp the quoted COP applies to
+    cop_gain_per_k: float = 0.03     # +3% COP per K of warmer supply air
+    cop_min: float = 1.5             # floor, keeps COP sane at extreme setpoints
+
+    def cop_at(self, supply_temp_c: float) -> float:
+        """Effective COP at a given supply setpoint."""
+        scaled = self.cop * (
+            1.0 + self.cop_gain_per_k * (supply_temp_c - self.cop_ref_temp_c)
+        )
+        return max(self.cop_min, scaled)
 
 
 @dataclass
