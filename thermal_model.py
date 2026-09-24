@@ -87,7 +87,7 @@ class DataCenterThermalModel:
         q_rack_to_air = (self.T_rack - self.T_air) / R_ra          # kW, one per rack
 
         # 1b) The CRAC pulls heat out of the air (proportional controller above).
-        q_cool = self.cooling_heat_kw(setpoint)                     # kW         # kW
+        q_cool = self.cooling_heat_kw(setpoint)                     # kW
 
         # 1c) The building envelope. If it's warmer outside, heat leaks IN
         #     (positive); if cooler outside, heat leaks out (negative).
@@ -121,12 +121,13 @@ class DataCenterThermalModel:
         # electricity. PUE = total facility power / useful IT power.
         # Always >= 1.0 because cooling is pure overhead on top of IT.
         # ============================================================
-        cooling_elec_kw = q_cool / cfg.crac.cop
+        # COP depends on the setpoint, so compute it before anything that
+        # uses cooling electricity (facility power and PUE included).
+        cop = cfg.crac.cop_at(setpoint)
+        cooling_elec_kw = q_cool / cop
         it_total_kw = float(it_power_kw.sum())
         total_facility_kw = it_total_kw + cooling_elec_kw
         pue = total_facility_kw / it_total_kw if it_total_kw > 0 else float("nan")
-        cop = cfg.crac.cop_at(setpoint)
-        cooling_elec_kw = q_cool / cop
 
         return {
             "T_rack": self.T_rack.copy(),
